@@ -1,0 +1,9 @@
+# Playbook for creating a user, setting up a web server and a database server and ntp server
+- name: Provisioning ntp server
+  hosts: all
+  become: yes
+  roles: 
+    - post-install 
+      # we can have another role here
+      
+  # we can also defined another play here to execute tasks on lets say webservers or dbservers and create a new role for it or use existing roles for it.

@@ -1,0 +1,174 @@
+# Playbook for creating a user, setting up a web server and a database server and ntp server
+- name: Provisioning ntp server
+  hosts: all
+  become: yes
+  tasks:
+    - name: create user
+      ansible.builtin.user:
+        name: "{{user_name}}"
+        comment: "{{comment}}"
+      register:  usrout
+
+    - name: Install NTP(chrony) server on Centos
+      yum:
+        update_cache: yes
+        name: "{{item}}"
+        state: present
+      when: ansible_distribution == "CentOS"
+      loop:
+        - chrony
+        - git
+        - unzip
+        - wget
+        - zip
+
+    - name: Starting NTP(chronyd) service on Centos
+      service:
+        name: chronyd
+        state: started
+        enabled: yes
+      when: ansible_distribution == "CentOS"
+
+    - name: Install NTP server on Ubuntu
+      apt:
+        update_cache: yes
+        name: "{{item}}"
+        state: present
+      when: ansible_distribution == "Ubuntu"
+      loop:
+        - ntp
+        - git
+        - unzip
+        - wget
+        - zip
+
+    - name: Starting NTP service on Ubuntu
+      service:
+        name: ntp
+        state: started
+        enabled: yes
+      when: ansible_distribution == "Ubuntu"
+
+    - name: Banner file
+      copy:
+        content: '# This server is managed by ansible. No manual changes please.'       
+        dest: /etc/motd
+
+    - name: Deploy ntp agent conf on centos
+      template:
+        src: ./templates/ntpconf_centos
+        dest: /etc/chrony.conf
+        backup: yes #to create a backup of the chrony.conf since the task will overwrite the original file
+      when: ansible_distribution == "CentOS"
+      notify: # to notify the handler to run the task to restart the ntp service once the task causes a change.
+        - Restarting NTP(chronyd) service on Centos # this name should be exactly the same as that of the task to be executed.
+    
+    - name: Deploy ntp agent conf on ubuntu
+      template:
+        src: ./templates/ntp.conf_ubuntu
+        dest: /etc/ntp.conf
+        backup: yes #to create a backup of the chrony.conf since the task will overwrite the original file
+      when: ansible_distribution == "Ubuntu"
+      notify: # to notify the handler to run the task to restart the ntp service once the task causes a change.
+        - Restarting NTP service on Ubuntu # this name should be exactly the same as that of the task to be executed.
+ 
+    - name: Copy file
+      copy:
+        src: files/file.txt
+        dest: /tmp/myfile.txt
+
+  handlers:
+    - name: Restarting NTP(chronyd) service on Centos
+      service:
+        name: chronyd
+        state: restarted
+        enabled: yes
+      when: ansible_distribution == "CentOS"
+
+    - name: Restarting NTP service on Ubuntu
+      service:
+        name: ntp
+        state: restarted
+        enabled: yes
+      when: ansible_distribution == "Ubuntu"
+
+    - debug:
+        var: usrout.name
+
+    - debug:
+        var: usrout.comment
+
+- name: Webserver Setup  # Name of the play
+  hosts: webservers       # Target hosts belonging to the 'webservers' group in the inventory file
+  become: yes             # Use sudo to execute tasks with elevated privileges
+  tasks:
+    - name: Install httpd  # Task to install  HTTP server
+      ansible.builtin.yum:  # Using the yum module for package management
+        name: httpd        # Package name to install
+        state: present     # Ensure the package is present on the system
+      when: ansible_distribution == "CentOS"
+
+    - name: Start service  # Task to start the HTTP service
+      ansible.builtin.service:  # Using the service module to manage services
+        name: httpd        # Service name to manage (Apache HTTP server)
+        state: started     # Ensure the service is started
+        enabled: yes       # Ensure the service starts automatically on boot
+      when: ansible_distribution == "CentOS"
+
+    - name: Install apache2  # Task to install Apache server
+      ansible.builtin.apt:  # Using the yum module for package management
+        name: apache2        # Package name to install
+        state: present     # Ensure the package is present on the system
+      when: ansible_distribution == "Ubuntu"
+
+    - name: Start service  # Task to start the HTTP service
+      ansible.builtin.service:  # Using the service module to manage services
+        name: apache2       # Service name to manage (Apache HTTP server)
+        state: started     # Ensure the service is started
+        enabled: yes       # Ensure the service starts automatically on boot
+      when: ansible_distribution == "Ubuntu"
+
+    - name: Copy file
+      copy:
+        src: index.html
+        dest: /var/www/html/index.html
+        backup: yes # if the file exists, it will create a backup.
+
+- name: Dbserver Setup    # Name of the play
+  hosts: dbservers       # Target hosts belonging to the 'webservers' group
+  become: yes             # Use sudo to execute tasks with elevated privileges
+  tasks:
+    - name: Install mariadb-server  # Task to install MariaDB server
+      ansible.builtin.yum:  # Using the yum module for package management
+        name: mariadb-server  # Package name to install
+        state: present     # Ensure the package is present on the system
+
+    - name: Install python3-PyMySQL dependency for the mariadbserver
+      ansible.builtin.yum:
+        name: python3-PyMySQL
+        state: present
+
+    - name: Create a new database with name 'accounts'
+      community.mysql.mysql_db:
+        login_unix_socket: /var/lib/mysql/mysql.sock #this location for centos
+        name: "{{dbname}}"
+        state: present
+
+    - name: Create database user with name 'sam' and password '12345' with all database privileges
+      community.mysql.mysql_user:
+        name: "{{dbuser}}"
+        password: "{{dbpassword}}"
+        priv: '*.*:ALL'
+        state: present
+        login_unix_socket: /var/lib/mysql/mysql.sock #this location for centos
+      register: dbout
+
+    - name: Start service  # Task to start the HTTP service
+      ansible.builtin.service:  # Using the service module to manage services
+        name: mariadb       # Service name to manage (Apache HTTP server)
+        state: started     # Ensure the service is started
+        enabled: yes       # Ensure the service starts automatically on boot
+
+    - name: print dbout variable
+      debug:
+        var: dbout
