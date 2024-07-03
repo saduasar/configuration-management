@@ -1,0 +1,5 @@
+---
+# vars file for db-setup
+db_name: accounts
+db_user: admin
+db_pass: admin123

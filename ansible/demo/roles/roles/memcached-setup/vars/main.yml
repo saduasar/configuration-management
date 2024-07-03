@@ -1,0 +1,3 @@
+---
+# vars file for memcached-setup
+listen_port: 0.0.0.0

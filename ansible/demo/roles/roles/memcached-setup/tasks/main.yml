@@ -1,0 +1,24 @@
+---
+# tasks file for memcached-setup
+- name: Install Memcached server
+  ansible.builtin.dnf:
+    name: "{{item}}"
+    state: present
+    update_cache: yes
+  loop:
+    # - epel-release
+    - memcached
+
+- name: Start the memcached server
+  service:
+    name: memcached 
+    state: started
+    enabled: yes
+
+- name: Configure memcached server
+  template: 
+    src: memcached.j2
+    dest: /etc/sysconfig/memcached
+    backup: yes 
+  notify: 
+   - Restarting memcached server

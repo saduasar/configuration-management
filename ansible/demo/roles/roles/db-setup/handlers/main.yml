@@ -1,0 +1,9 @@
+---
+# handlers file for db-setup
+- name: Restore database
+  community.mysql.mysql_db:
+    name: "{{ db_name }}"
+    login_user: "{{ db_user }}"
+    login_password: "{{ db_pass }}"
+    state: import
+    target: /opt/db_backup.sql

@@ -1,0 +1,5 @@
+- name: Provisioning memcached server
+  hosts: dbserver #used dbserver for test purposes
+  become: yes
+  roles:
+    - memcached-setup

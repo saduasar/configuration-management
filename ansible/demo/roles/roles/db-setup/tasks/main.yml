@@ -1,0 +1,42 @@
+---
+# tasks file for db-setup
+- name: Install mariadb-server  # Task to install MariaDB server
+  yum:  # Using the yum module for package management
+    name: mariadb-server  # Package name to install
+    state: present  
+    update_cache: yes
+
+- name: Starting mariadb service on Centos
+  service:
+    name: mariadb
+    state: started
+    enabled: yes
+
+- name: Install python3-PyMySQL dependency for the mysql module
+  ansible.builtin.yum:
+    name: python3-PyMySQL
+    state: present
+
+- name: Create database user with name 'sam' and password '12345' with all database privileges
+  community.mysql.mysql_user:
+    name: "{{ db_user }}"
+    password: "{{ db_pass }}"
+    priv: '*.*:ALL'
+    state: present
+    login_unix_socket: /var/lib/mysql/mysql.sock #this location for centos
+
+- name: Setup mysql db with database name and db user.
+  community.mysql.mysql_db:
+    name: "{{ db_name }}"
+    state: present
+    login_user: "{{ db_user }}"
+    login_password: "{{ db_pass }}"
+    login_unix_socket: /var/lib/mysql/mysql.sock
+
+- name: Copy database dump/initial db script file
+  copy:
+    src: files/db_backup.sql
+    dest: /opt
+  notify:
+    - Restore database
+

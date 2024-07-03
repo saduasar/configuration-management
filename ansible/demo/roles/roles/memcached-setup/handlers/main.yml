@@ -1,0 +1,7 @@
+---
+# handlers file for memcached-setup
+- name: Restarting memcached server
+  service: 
+    name: memcached
+    state: restarted
+    enabled: yes

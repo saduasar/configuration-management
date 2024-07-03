@@ -1,0 +1,5 @@
+- name: Provisioning mysql server
+  hosts: dbservers
+  become: yes
+  roles:
+    - db-setup
